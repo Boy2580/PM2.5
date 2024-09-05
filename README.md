@@ -2,56 +2,81 @@
 // project PM2.5
 #include <Adafruit_NeoPixel.h>
 #include <SoftwareSerial.h>
+
 //=========== NEOPIXEL ==============
 #define PIXELS_PER_SEGMENT 11  // Number of LEDs in each Segment
 #define PIXELS_DIGITS 3        // Number of connected Digits
 #define PIXELS_PIN 7           // GPIO Pin
 bool Debug = false;
 int LITUP_STRIPS_COLOR[] = { 100, 10, 0 };
+
 //=========== SENSOR ==============
 SoftwareSerial mySerial(2, 3);  // TX, RX
 unsigned int pm1 = 0;
 unsigned int pm2_5 = 0;
 unsigned int pm10 = 0;
 int Previous_pm2_5 = -1;
+
 Adafruit_NeoPixel strip = Adafruit_NeoPixel(PIXELS_PER_SEGMENT * 7 * PIXELS_DIGITS, PIXELS_PIN, NEO_GRB + NEO_KHZ800);
+
+//Pixel Arrangement
+/*
+          a
+        f   b
+          g
+        e   c
+          d
+*/
+
+// Segment array
 byte segments[7] = {
-  0b0000001,  // Segment g;
-  0b0000100,  // Segment e;
-  0b0001000,  // Segment d;
-  0b0010000,  // Segment c;
-  0b0100000,  // Segment b;
-  0b1000000,  // Segment a;
-  0b0000010   // Segment f;
-}
-byte digits[10] = {
-  0b1111110,  // 0;
-  0b0110000,  // 1;
-  0b1101101,  // 2;
-  0b1111001,  // 3;
-  0b0110011,  // 4;
-  0b1011011,  // 5;
-  0b1011111,  // 6;
-  0b1110000,  // 7;
-  0b1111111,  // 8;
-  0b1111011   // 9;
+  //abcdefg
+  0b0000001,  // Segment g
+  0b0000100,  // Segment e
+  0b0001000,  // Segment d
+  0b0010000,  // Segment c
+  0b0100000,  // Segment b
+  0b1000000,  // Segment a
+  0b0000010   // Segment f
 };
+
+//Digits array
+byte digits[10] = {
+  //abcdefg
+  0b1111110,  // 0
+  0b0110000,  // 1
+  0b1101101,  // 2
+  0b1111001,  // 3
+  0b0110011,  // 4
+  0b1011011,  // 5
+  0b1011111,  // 6
+  0b1110000,  // 7
+  0b1111111,  // 8
+  0b1111011   // 9
+};
+
+//Clear all the Pixels
 void clearDisplay() {
   for (int i = 0; i < strip.numPixels(); i++) {
     strip.setPixelColor(i, strip.Color(0, 0, 0));
- }
+  }
   strip.show();
 }
+
 void setup() {
   strip.begin();
   Serial.begin(9600);
-  while (!Serial) ;
+  while (!Serial)
+    ;
   mySerial.begin(9600);
 }
+
 void loop() {
+  //=========== SENSOR ==============
   int index = 0;
   char value;
   char previousValue;
+
   if (Debug == false) {
     while (mySerial.available()) {
       value = mySerial.read();
@@ -59,25 +84,23 @@ void loop() {
         Serial.println("Cannot find the data header.");
         break;
       }
+
       if (index == 4 || index == 6 || index == 8 || index == 10 || index == 12 || index == 14) {
         previousValue = value;
-      } 
-else if (index == 5) {
+      } else if (index == 5) {
         pm1 = 256 * previousValue + value;
         Serial.print("{ ");
         Serial.print("\"pm1\": ");
         Serial.print(pm1);
         Serial.print(" ug/m3");
         Serial.print(", ");
-      }
- else if (index == 7) {
+      } else if (index == 7) {
         pm2_5 = 256 * previousValue + value;
         Serial.print("\"pm2_5\": ");
         Serial.print(pm2_5);
         Serial.print(" ug/m3");
         Serial.print(", ");
-      } 
-else if (index == 9) {
+      } else if (index == 9) {
         pm10 = 256 * previousValue + value;
         Serial.print("\"pm10\": ");
         Serial.print(pm10);
@@ -91,6 +114,8 @@ else if (index == 9) {
     Serial.println(" }");
     delay(1000);
   }
+
+  //=========== NEOPIXEL ==============
   if (Debug == false && Previous_pm2_5 != pm2_5) {
     Previous_pm2_5 = pm2_5;
     clearDisplay();
@@ -140,12 +165,14 @@ void writeDigit(int index, int val, int R, int G, int B) {
       if (val == 0) color = strip.Color(R, G, B);
     } else
       color = strip.Color(0, 0, 0);
+
     for (int j = offset; j < offset + PIXELS_PER_SEGMENT; j++) {
       strip.setPixelColor(j, color);
     }
     digit = digit >> 1;
   }
 }
+
 void writeSegment(int index, int val) {
   byte seg = segments[val];
   for (int i = 6; i >= 0; i--) {
@@ -161,6 +188,7 @@ void writeSegment(int index, int val) {
       if (val == 6) color = strip.Color(255, 0, 0);
     } else
       color = strip.Color(0, 0, 0);
+
     for (int j = offset; j < offset + PIXELS_PER_SEGMENT; j++) {
       strip.setPixelColor(j, color);
     }
